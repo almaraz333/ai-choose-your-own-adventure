@@ -1,118 +1,121 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
+import { PlayerField } from '@/components/PlayerField';
+import { MouseEvent, useEffect, useState } from 'react';
 
-const inter = Inter({ subsets: ['latin'] })
+export interface Character {name: string, race: string, class: string}
+
+let chatLog = '';
 
 export default function Home() {
+  const [chatResponse, setChatResponse] = useState('');
+  const [playerCount, setPlayerCount] = useState('0');
+  const [turnCount, setTurnCount] = useState('0');
+  const [characters, setCharacters] = useState<Character[]>([] as Character[]);
+  const [genre, setGenre] = useState('Fantasy');
+  const [prompt, setPrompt] = useState('');
+  const [adventureStarted, setAdventureStarted] = useState(false);
+
+  const initialPrompt = 
+  `I want you to create a text-based choose your own adventure story for ${playerCount} players with ${turnCount} steps (I have to make ${turnCount} decisions and after the last decision the story should conclude in a way that makes sense). 
+  The story should include quirky challenges, amusing references, and surprise twists. 
+  Do not explain the choice will lead to until the user makes a choice.
+  The player characters are represented by the following array of JSON objects (including name, character race, and character class): 
+  ${JSON.stringify(characters)}. 
+  Each character is a human player helping make choices in real life with me.
+  On each step you should pause and ask the users for a choice the will influence the direction of the story like a choose your own adventure book.
+  The story takes place in a ${genre} setting and has a beginning, middle, and end. 
+  All players are above 18 years old and understand the nature of the content, which includes adult humor and dark comedy. 
+  Players should have opportunities to interact and collaborate with one another, as well as engage in friendly competition. 
+  I will go through each step one by one, entering my choice and expecting the next part of the story to be generated accordingly. 
+  Additionally, the story should include a point system or rewards to encourage player participation and create a more engaging party game experience. 
+  Please describe the opening scene and first choice then wait for the user's choice.`;
+
+  useEffect(() => {
+    if(!adventureStarted) {
+      setPrompt(initialPrompt);
+    }
+  }, [initialPrompt, adventureStarted]);
+
+  console.log(chatLog);
+    
+  const fetchChat = async (e: MouseEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    chatLog = chatLog + JSON.stringify({role: 'assistant', prompt: chatResponse});
+
+    setAdventureStarted(true);
+    setChatResponse('');
+
+    const res = await fetch('/api/chat', {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'}, 
+      body: JSON.stringify({prompt: adventureStarted ? initialPrompt : `We have been having a conversation, and here is the context in the form of an array of objects: ${JSON.stringify(chatLog)}.
+      Your responses do not need to match this format.
+      In the chatLog, user messages have the role 'user', and your role is 'assistant'.
+      Now, please continue the choose-your-own-adventure story based on the user's choice and present new choices for the players to make decisions in a list with numbers marking each choice: ${prompt}
+      `})});
+
+    if (!res.ok) {
+      throw new Error(res.statusText);
+    }
+    const data = res.body;
+    if (!data) {
+      return;
+    }
+
+    const reader = data.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+      const chunkValue = decoder.decode(value);
+      setChatResponse((prev) => prev + chunkValue);
+    }
+
+    chatLog = chatLog + JSON.stringify({role: 'user', prompt});
+    setPrompt('');
+  };
+
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main className="w-full max-w-xs">
+      <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-screen" onSubmit={fetchChat}>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="player-count">
+              Genre
+          </label>
+          <input value={genre} onChange={e => setGenre(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="player-count" type="text" placeholder="Genre..."/>
         </div>
-      </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="player-count">
+              Number of Players
+          </label>
+          <input value={playerCount} onChange={e => setPlayerCount(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="player-count" type="number" placeholder="Number of players..."/>
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="turn-count">
+              Number of Turns
+          </label>
+          <input value={turnCount} onChange={e => setTurnCount(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="turn-count" type="number" placeholder="Number of turns..." />
+        </div>
+        <div className="mb-6">
+          {
+            new Array(Number(playerCount)).fill(true).map(() => 
+              <PlayerField onAdd={setCharacters} key={Math.floor(Math.random() * 10000)}/>
+            )
+          }
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="prompt">
+              Prompt
+          </label>
+          <input value={prompt} onChange={e => setPrompt(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="prompt" type="text" placeholder="Prompt" />
+        </div>
+        <button className="bg-blue-800 hover:bg-blue-950 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type='submit'>Start Adventure</button>
+        <textarea className='text-black w-full' rows={20} cols={20} value={chatResponse} readOnly/>
+      </form>
+      <p className="text-center text-gray-500 text-xs">
+    &copy;2023 Ranger Code - Colton Almaraz
+      </p>
     </main>
-  )
+  );
 }
